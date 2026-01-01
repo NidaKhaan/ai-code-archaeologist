@@ -21,7 +21,7 @@ An intelligent code analysis tool that uses AI to understand, explain, and impro
 ## Development Setup
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone <https://github.com/NidaKhaan/ai-code-archaeologist>
 
 # Create virtual environment
 python -m venv venv
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 🚧 **Month 1 - Week 1**: Foundation & Environment Setup
 
-## Author
+## Nida 
 
 Building this as part of my AI Engineering journey.
 
