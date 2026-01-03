@@ -29,6 +29,25 @@ class AnalysisRequest(BaseModel):
     )
     detect_bugs: bool = Field(default=True, description="Run bug detection")
 
+
+class CodeSnippet(BaseModel):
+    """Model for code snippet analysis."""
+
+    code: str = Field(..., description="The code to analyze")
+    language: str = Field(default="python", description="Programming language")
+    provider: Optional[str] = Field(
+        default=None, description="LLM provider: ollama or groq"
+    )
+
+
+class AIAnalysisResponse(BaseModel):
+    """Response from AI analysis."""
+
+    result: str
+    provider_used: str
+    model_used: str
+    tokens_used: int
+
     model_config = {
         "json_schema_extra": {
             "example": {

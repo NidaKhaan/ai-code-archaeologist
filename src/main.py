@@ -1,6 +1,7 @@
 """Main FastAPI application for AI Code Archaeologist."""
 
 from fastapi import FastAPI, HTTPException, Depends, Security, Request
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -13,6 +14,8 @@ from src.database import get_db, init_db
 from src.db_models import AnalysisResult
 from src.auth import verify_api_key
 from src.rate_limit import limiter
+from src.code_analyzer import code_analyzer
+from src.models import CodeSnippet, AIAnalysisResponse
 
 
 @asynccontextmanager
@@ -136,3 +139,82 @@ async def get_analysis(
         "bugs_found": analysis.bugs_found,
         "architecture_summary": analysis.architecture_summary,
     }
+
+
+@app.post("/ai/analyze-repo", response_model=AIAnalysisResponse)
+@limiter.limit("3/minute")
+async def ai_analyze_repo(
+    request: Request,
+    repo_url: str,
+    provider: Optional[str] = None,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Use AI to analyze a GitHub repository.
+    Requires API key authentication.
+    """
+    if not validate_github_url(repo_url):
+        raise HTTPException(status_code=400, detail="Invalid GitHub URL")
+
+    try:
+        result = await code_analyzer.analyze_repository_summary(repo_url, provider)
+        return AIAnalysisResponse(
+            result=result["summary"],
+            provider_used=result["provider_used"],
+            model_used=result["model_used"],
+            tokens_used=result["tokens"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.post("/ai/explain-code", response_model=AIAnalysisResponse)
+@limiter.limit("5/minute")
+async def ai_explain_code(
+    request: Request,
+    snippet: CodeSnippet,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Use AI to explain code snippet.
+    Requires API key authentication.
+    """
+    try:
+        result = await code_analyzer.explain_code_snippet(
+            snippet.code, snippet.language, snippet.provider
+        )
+        return AIAnalysisResponse(
+            result=result["explanation"],
+            provider_used=result["provider_used"],
+            model_used="codellama:7b",
+            tokens_used=result["tokens"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+
+
+@app.post("/ai/improve-code", response_model=AIAnalysisResponse)
+@limiter.limit("5/minute")
+async def ai_improve_code(
+    request: Request,
+    snippet: CodeSnippet,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Use AI to suggest code improvements.
+    Requires API key authentication.
+    """
+    try:
+        result = await code_analyzer.suggest_improvements(
+            snippet.code, snippet.language, snippet.provider
+        )
+        return AIAnalysisResponse(
+            result=result["suggestions"],
+            provider_used=result["provider_used"],
+            model_used="codellama:7b",
+            tokens_used=result["tokens"],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Improvement suggestion failed: {str(e)}"
+        )
