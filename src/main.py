@@ -1,21 +1,34 @@
 """Main FastAPI application for AI Code Archaeologist."""
 
-from fastapi import FastAPI, HTTPException, Depends, Security, Request
-from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
+import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Depends, Security, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from src.utils import greet, validate_github_url
-from src.models import GreetingResponse, RepositoryValidation, AnalysisRequest
+from src.models import (
+    GreetingResponse,
+    RepositoryValidation,
+    AnalysisRequest,
+    CodeSnippet,
+    AIAnalysisResponse,
+    CodeAnalysisRequest,
+)
 from src.database import get_db, init_db
 from src.db_models import AnalysisResult
 from src.auth import verify_api_key
 from src.rate_limit import limiter
 from src.code_analyzer import code_analyzer
-from src.models import CodeSnippet, AIAnalysisResponse
+from src.ast_analyzer import ast_analyzer
+from src.complexity_analyzer import complexity_analyzer
+from src.security_analyzer import security_analyzer
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -218,3 +231,52 @@ async def ai_improve_code(
         raise HTTPException(
             status_code=500, detail=f"Improvement suggestion failed: {str(e)}"
         )
+
+
+@app.post("/analyze/deep-scan")
+@limiter.limit("3/minute")
+async def deep_code_scan(
+    request: Request,
+    analysis_request: CodeAnalysisRequest,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Perform deep code analysis: AST, complexity, and security.
+    Requires API key authentication.
+    """
+    results = {}
+
+    try:
+        # AST Analysis
+        if analysis_request.include_ast:
+            logger.info("Running AST analysis...")
+            results["ast_analysis"] = ast_analyzer.analyze_code(analysis_request.code)
+
+        # Complexity Analysis
+        if analysis_request.include_complexity:
+            logger.info("Running complexity analysis...")
+            results["complexity_analysis"] = complexity_analyzer.analyze_complexity(
+                analysis_request.code
+            )
+
+        # Security Scan
+        if analysis_request.include_security:
+            logger.info("Running security scan...")
+            results["security_analysis"] = security_analyzer.scan_code(
+                analysis_request.code
+            )
+
+        return {
+            "status": "success",
+            "analyses_performed": {
+                "ast": analysis_request.include_ast,
+                "complexity": analysis_request.include_complexity,
+                "security": analysis_request.include_security,
+            },
+            "results": results,
+            "api_key": api_key_info["name"],
+        }
+
+    except Exception as e:
+        logger.error(f"Deep scan failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")

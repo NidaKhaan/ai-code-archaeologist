@@ -48,6 +48,25 @@ class AIAnalysisResponse(BaseModel):
     model_used: str
     tokens_used: int
 
+
+class CodeAnalysisRequest(BaseModel):
+    """Request for code analysis."""
+
+    code: str = Field(..., description="Python code to analyze")
+    include_ast: bool = Field(default=True, description="Include AST analysis")
+    include_complexity: bool = Field(
+        default=True, description="Include complexity metrics"
+    )
+    include_security: bool = Field(default=True, description="Include security scan")
+
+
+class AnalysisType(BaseModel):
+    """Type of analysis to perform."""
+
+    ast_analysis: bool = Field(default=True)
+    complexity_analysis: bool = Field(default=True)
+    security_scan: bool = Field(default=True)
+
     model_config = {
         "json_schema_extra": {
             "example": {
