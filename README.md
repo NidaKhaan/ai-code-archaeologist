@@ -35,7 +35,7 @@ AI Code Archaeologist analyzes codebases using multiple AI models and static ana
 ### Production-Ready API
 - RESTful API with FastAPI
 - API key authentication
-- Rate limiting (prevents abuse)
+- Rate limiting
 - Auto-generated Swagger documentation
 - Async database operations
 - Comprehensive error handling
