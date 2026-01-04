@@ -3,7 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Security, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,8 @@ from src.code_analyzer import code_analyzer
 from src.ast_analyzer import ast_analyzer
 from src.complexity_analyzer import complexity_analyzer
 from src.security_analyzer import security_analyzer
+from src.dependency_analyzer import dependency_analyzer
+from src.architecture_detector import architecture_detector
 
 logger = logging.getLogger(__name__)
 
@@ -280,3 +282,137 @@ async def deep_code_scan(
     except Exception as e:
         logger.error(f"Deep scan failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.post("/analyze/dependencies")
+@limiter.limit("5/minute")
+async def analyze_dependencies(
+    request: Request,
+    code: str,
+    filename: str = "main.py",
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Analyze code dependencies and import structure.
+    Requires API key authentication.
+    """
+    try:
+        result = dependency_analyzer.analyze_dependencies(code, filename)
+        return {
+            "status": "success",
+            "filename": filename,
+            "analysis": result,
+            "api_key": api_key_info["name"],
+        }
+    except Exception as e:
+        logger.error(f"Dependency analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.post("/analyze/architecture")
+@limiter.limit("5/minute")
+async def analyze_architecture(
+    request: Request, code: str, api_key_info: dict = Security(verify_api_key)
+):
+    """
+    Detect architectural patterns and design smells.
+    Requires API key authentication.
+    """
+    try:
+        result = architecture_detector.detect_patterns(code)
+        return {
+            "status": "success",
+            "analysis": result,
+            "api_key": api_key_info["name"],
+        }
+    except Exception as e:
+        logger.error(f"Architecture analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.post("/analyze/complete")
+@limiter.limit("2/minute")
+async def complete_analysis(
+    request: Request,
+    code: str,
+    filename: str = "main.py",
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Perform COMPLETE code analysis - all features combined!
+    This is the ultimate endpoint that runs everything.
+    Requires API key authentication.
+    """
+    try:
+        logger.info("Starting complete code analysis...")
+
+        results = {
+            "ast_structure": ast_analyzer.analyze_code(code),
+            "complexity_metrics": complexity_analyzer.analyze_complexity(code),
+            "security_scan": security_analyzer.scan_code(code),
+            "dependencies": dependency_analyzer.analyze_dependencies(code, filename),
+            "architecture": architecture_detector.detect_patterns(code),
+        }
+
+        # Generate overall score
+        overall_score = await _calculate_overall_score(results)
+
+        return {
+            "status": "success",
+            "filename": filename,
+            "overall_score": overall_score,
+            "detailed_analysis": results,
+            "api_key": api_key_info["name"],
+        }
+
+    except Exception as e:
+        logger.error(f"Complete analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+async def _calculate_overall_score(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Calculate overall code quality score from all analyses."""
+    scores = []
+
+    # Complexity score (inverse - lower is better)
+    if "quality_grade" in results.get("complexity_metrics", {}):
+        grade = results["complexity_metrics"]["quality_grade"].get("grade", "F")
+        grade_scores = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
+        scores.append(grade_scores.get(grade, 20))
+
+    # Best practices score
+    if "best_practices" in results.get("architecture", {}):
+        bp_score = results["architecture"]["best_practices"].get("score", 0)
+        scores.append(bp_score)
+
+    # Security score (fewer issues = higher score)
+    if "summary" in results.get("security_scan", {}):
+        issues = results["security_scan"]["summary"].get("total_issues", 0)
+        security_score = max(0, 100 - (issues * 10))
+        scores.append(security_score)
+
+    # Calculate average
+    avg_score = sum(scores) / len(scores) if scores else 0
+
+    # Determine grade
+    if avg_score >= 90:
+        grade, desc = "A", "Excellent"
+    elif avg_score >= 75:
+        grade, desc = "B", "Good"
+    elif avg_score >= 60:
+        grade, desc = "C", "Fair"
+    elif avg_score >= 40:
+        grade, desc = "D", "Poor"
+    else:
+        grade, desc = "F", "Critical"
+
+    return {
+        "score": round(avg_score, 1),
+        "grade": grade,
+        "description": desc,
+        "component_scores": {
+            "complexity": scores[0] if len(scores) > 0 else 0,
+            "best_practices": scores[1] if len(scores) > 1 else 0,
+            "security": scores[2] if len(scores) > 2 else 0,
+        },
+    }
