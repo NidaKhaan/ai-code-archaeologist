@@ -194,7 +194,18 @@ class GitHubAnalyzer:
     def _parse_repo_url(self, repo_url: str) -> tuple:
         """Parse owner and repo name from GitHub URL."""
         # Handle various URL formats
-        url = repo_url.replace("https://github.com/", "").replace(".git", "")
+        url = repo_url.strip()
+
+        # Remove protocol
+        url = url.replace("https://", "").replace("http://", "")
+
+        # Remove github.com prefix
+        url = url.replace("github.com/", "")
+
+        # Remove .git suffix
+        url = url.replace(".git", "")
+
+        # Split by /
         parts = url.split("/")
 
         if len(parts) < 2:
