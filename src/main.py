@@ -1,5 +1,6 @@
 """Main FastAPI application for AI Code Archaeologist."""
 
+from src.db_models import AnalysisResult, GitHubAnalysis
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -20,7 +21,6 @@ from src.models import (
     CodeAnalysisRequest,
 )
 from src.database import get_db, init_db
-from src.db_models import AnalysisResult
 from src.auth import verify_api_key
 from src.rate_limit import limiter
 from src.code_analyzer import code_analyzer
@@ -481,11 +481,12 @@ async def analyze_github_repository(
     request: Request,
     repo_url: str,
     max_files: int = 10,
+    db: AsyncSession = Depends(get_db),
     api_key_info: dict = Security(verify_api_key),
 ):
     """
-    FULL GitHub repository analysis - clones and analyzes code!
-    This is the ULTIMATE feature - analyzes entire repos.
+    FULL GitHub repository analysis - clones, analyzes, and SAVES results!
+    This is the ULTIMATE feature - analyzes entire repos and stores in database.
 
     Warning: This clones the repository and can take 1-3 minutes.
     Requires API key authentication.
@@ -511,8 +512,22 @@ async def analyze_github_repository(
             python_files = github_analyzer.get_python_files(repo_path)
 
             if not python_files:
+                # Save minimal result
+                analysis_record = GitHubAnalysis(
+                    repo_url=repo_url,
+                    repo_name=repo_info["name"],
+                    language=repo_info.get("language"),
+                    stars=repo_info.get("stars", 0),
+                    forks=repo_info.get("forks", 0),
+                    status="no_python_files",
+                )
+                db.add(analysis_record)
+                await db.commit()
+                await db.refresh(analysis_record)
+
                 return {
                     "status": "success",
+                    "analysis_id": analysis_record.id,
                     "message": "No Python files found in repository",
                     "repository": repo_info,
                 }
@@ -544,14 +559,43 @@ async def analyze_github_repository(
             # Step 5: Generate summary
             total_lines = sum(f["line_count"] for f in python_files)
             avg_complexity = sum(
-                f.get("complexity", {})
-                .get("quality_grade", {})
-                .get("maintainability_index", 0)
+                f.get("complexity", {}).get("maintainability_index", {}).get("score", 0)
                 for f in analyzed_files
             ) / max(len(analyzed_files), 1)
 
+            # Step 6: Save to database
+            import json
+
+            analysis_record = GitHubAnalysis(
+                repo_url=repo_url,
+                repo_name=repo_info["name"],
+                language=repo_info.get("language"),
+                stars=repo_info.get("stars", 0),
+                forks=repo_info.get("forks", 0),
+                total_python_files=len(python_files),
+                files_analyzed=len(analyzed_files),
+                total_lines=total_lines,
+                average_maintainability=round(avg_complexity, 2),
+                analysis_summary=json.dumps(
+                    {
+                        "description": repo_info.get("description"),
+                        "topics": repo_info.get("topics", []),
+                        "created_at": repo_info.get("created_at"),
+                    }
+                ),
+                file_analyses=json.dumps(analyzed_files),
+                status="completed",
+            )
+
+            db.add(analysis_record)
+            await db.commit()
+            await db.refresh(analysis_record)
+
+            logger.info(f"Analysis saved with ID: {analysis_record.id}")
+
             result = {
                 "status": "success",
+                "analysis_id": analysis_record.id,
                 "repository": repo_info,
                 "summary": {
                     "total_python_files": len(python_files),
@@ -559,8 +603,8 @@ async def analyze_github_repository(
                     "total_lines_of_code": total_lines,
                     "average_maintainability": round(avg_complexity, 2),
                 },
-                "analyzed_files": analyzed_files,
-                "message": f"Successfully analyzed {len(analyzed_files)} files from {repo_info['name']}",
+                "analyzed_files": analyzed_files[:3],  # Return first 3 for preview
+                "message": f"Successfully analyzed and saved {len(analyzed_files)} files from {repo_info['name']}",
             }
 
             return result
@@ -573,3 +617,111 @@ async def analyze_github_repository(
         github_analyzer.cleanup()
         logger.error(f"Full analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.get("/github/analyses")
+@limiter.limit("20/minute")
+async def list_github_analyses(
+    request: Request,
+    skip: int = 0,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    List all saved GitHub repository analyses.
+    Paginated results.
+    Requires API key authentication.
+    """
+    try:
+        from sqlalchemy import select
+
+        result = await db.execute(
+            select(GitHubAnalysis)
+            .order_by(GitHubAnalysis.analyzed_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        analyses = result.scalars().all()
+
+        return {
+            "status": "success",
+            "count": len(analyses),
+            "analyses": [
+                {
+                    "id": a.id,
+                    "repo_name": a.repo_name,
+                    "repo_url": a.repo_url,
+                    "language": a.language,
+                    "stars": a.stars,
+                    "analyzed_at": a.analyzed_at.isoformat(),
+                    "files_analyzed": a.files_analyzed,
+                    "total_lines": a.total_lines,
+                    "average_maintainability": a.average_maintainability,
+                    "status": a.status,
+                }
+                for a in analyses
+            ],
+        }
+    except Exception as e:
+        logger.error(f"Error listing analyses: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/github/analyses/{analysis_id}")
+@limiter.limit("20/minute")
+async def get_github_analysis(
+    request: Request,
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Get detailed GitHub analysis by ID.
+    Returns full analysis including all file results.
+    Requires API key authentication.
+    """
+    try:
+        from sqlalchemy import select
+        import json
+
+        result = await db.execute(
+            select(GitHubAnalysis).where(GitHubAnalysis.id == analysis_id)
+        )
+        analysis = result.scalar_one_or_none()
+
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+
+        # Parse JSON fields
+        summary = (
+            json.loads(analysis.analysis_summary) if analysis.analysis_summary else {}
+        )
+        file_analyses = (
+            json.loads(analysis.file_analyses) if analysis.file_analyses else []
+        )
+
+        return {
+            "status": "success",
+            "analysis": {
+                "id": analysis.id,
+                "repo_name": analysis.repo_name,
+                "repo_url": analysis.repo_url,
+                "language": analysis.language,
+                "stars": analysis.stars,
+                "forks": analysis.forks,
+                "analyzed_at": analysis.analyzed_at.isoformat(),
+                "total_python_files": analysis.total_python_files,
+                "files_analyzed": analysis.files_analyzed,
+                "total_lines": analysis.total_lines,
+                "average_maintainability": analysis.average_maintainability,
+                "status": analysis.status,
+                "summary": summary,
+                "file_analyses": file_analyses,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
