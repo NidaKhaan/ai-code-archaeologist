@@ -29,6 +29,7 @@ from src.complexity_analyzer import complexity_analyzer
 from src.security_analyzer import security_analyzer
 from src.dependency_analyzer import dependency_analyzer
 from src.architecture_detector import architecture_detector
+from src.github_analyzer import github_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -416,3 +417,159 @@ async def _calculate_overall_score(results: Dict[str, Any]) -> Dict[str, Any]:
             "security": scores[2] if len(scores) > 2 else 0,
         },
     }
+
+
+@app.get("/github/info")
+@limiter.limit("10/minute")
+async def get_github_repo_info(
+    request: Request, repo_url: str, api_key_info: dict = Security(verify_api_key)
+):
+    """
+    Get GitHub repository information without cloning.
+    Fast metadata retrieval via GitHub API.
+    Requires API key authentication.
+    """
+    try:
+        info = github_analyzer.get_repository_info(repo_url)
+
+        if "error" in info:
+            raise HTTPException(status_code=400, detail=info["error"])
+
+        return {
+            "status": "success",
+            "repository": info,
+            "api_key": api_key_info["name"],
+        }
+    except Exception as e:
+        logger.error(f"Error fetching repo info: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/github/structure")
+@limiter.limit("5/minute")
+async def get_github_repo_structure(
+    request: Request,
+    repo_url: str,
+    max_depth: int = 3,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Get GitHub repository file structure.
+    Analyzes structure without full clone.
+    Requires API key authentication.
+    """
+    try:
+        structure = github_analyzer.get_file_structure(repo_url, max_depth)
+
+        if "error" in structure:
+            raise HTTPException(status_code=400, detail=structure["error"])
+
+        return {
+            "status": "success",
+            "repo_url": repo_url,
+            "structure": structure,
+            "api_key": api_key_info["name"],
+        }
+    except Exception as e:
+        logger.error(f"Error getting repo structure: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/github/analyze-full")
+@limiter.limit("2/minute")
+async def analyze_github_repository(
+    request: Request,
+    repo_url: str,
+    max_files: int = 10,
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    FULL GitHub repository analysis - clones and analyzes code!
+    This is the ULTIMATE feature - analyzes entire repos.
+
+    Warning: This clones the repository and can take 1-3 minutes.
+    Requires API key authentication.
+    """
+    try:
+        logger.info(f"Starting full analysis of {repo_url}")
+
+        # Step 1: Get repo info
+        repo_info = github_analyzer.get_repository_info(repo_url)
+        if "error" in repo_info:
+            raise HTTPException(status_code=400, detail=repo_info["error"])
+
+        # Step 2: Clone repository
+        logger.info("Cloning repository...")
+        repo_path = github_analyzer.clone_repository(repo_url)
+
+        if not repo_path:
+            raise HTTPException(status_code=500, detail="Failed to clone repository")
+
+        try:
+            # Step 3: Get Python files
+            logger.info("Extracting Python files...")
+            python_files = github_analyzer.get_python_files(repo_path)
+
+            if not python_files:
+                return {
+                    "status": "success",
+                    "message": "No Python files found in repository",
+                    "repository": repo_info,
+                }
+
+            # Step 4: Analyze files (limit to max_files)
+            files_to_analyze = python_files[:max_files]
+            analyzed_files = []
+
+            logger.info(f"Analyzing {len(files_to_analyze)} Python files...")
+
+            for file_data in files_to_analyze:
+                if file_data["content"]:
+                    try:
+                        # Run quick analysis on each file
+                        analysis = {
+                            "path": file_data["path"],
+                            "lines": file_data["line_count"],
+                            "size": file_data["size_bytes"],
+                            "ast": ast_analyzer.analyze_code(file_data["content"]),
+                            "complexity": complexity_analyzer.analyze_complexity(
+                                file_data["content"]
+                            ),
+                        }
+                        analyzed_files.append(analysis)
+                    except Exception as e:
+                        logger.warning(f"Failed to analyze {file_data['path']}: {e}")
+                        continue
+
+            # Step 5: Generate summary
+            total_lines = sum(f["line_count"] for f in python_files)
+            avg_complexity = sum(
+                f.get("complexity", {})
+                .get("quality_grade", {})
+                .get("maintainability_index", 0)
+                for f in analyzed_files
+            ) / max(len(analyzed_files), 1)
+
+            result = {
+                "status": "success",
+                "repository": repo_info,
+                "summary": {
+                    "total_python_files": len(python_files),
+                    "files_analyzed": len(analyzed_files),
+                    "total_lines_of_code": total_lines,
+                    "average_maintainability": round(avg_complexity, 2),
+                },
+                "analyzed_files": analyzed_files,
+                "message": f"Successfully analyzed {len(analyzed_files)} files from {repo_info['name']}",
+            }
+
+            return result
+
+        finally:
+            # Always cleanup
+            github_analyzer.cleanup()
+
+    except Exception as e:
+        github_analyzer.cleanup()
+        logger.error(f"Full analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
