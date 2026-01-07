@@ -196,7 +196,7 @@ pytest tests/test_database.py -v     # Database operations
 ```
 
 **Current Test Coverage:** 32+ tests covering:
-- ✅ API endpoints (auth, rate limiting)
+- ✅ API endpoints (auth)
 - ✅ Database operations (CRUD, relationships)
 - ✅ Code analysis (AST, complexity, security)
 - ✅ Architecture detection
