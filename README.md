@@ -202,7 +202,7 @@ pytest tests/test_database.py -v     # Database operations
 - ✅ Architecture detection
 - ✅ Dependency analysis
 - ✅ GitHub integration (cloning, API calls)
-- ✅ LLM providers 
+- ✅ LLM providers (Ollama, Groq)
 
 ## 🤝 Contributing
 
