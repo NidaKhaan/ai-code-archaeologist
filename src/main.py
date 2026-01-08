@@ -30,6 +30,8 @@ from src.security_analyzer import security_analyzer
 from src.dependency_analyzer import dependency_analyzer
 from src.architecture_detector import architecture_detector
 from src.github_analyzer import github_analyzer
+from fastapi.responses import Response
+from src.report_generator import report_generator
 
 logger = logging.getLogger(__name__)
 
@@ -724,4 +726,169 @@ async def get_github_analysis(
         raise
     except Exception as e:
         logger.error(f"Error getting analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/reports/markdown/{analysis_id}")
+@limiter.limit("10/minute")
+async def download_markdown_report(
+    request: Request,
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Download analysis report in Markdown format.
+    Beautiful, readable reports for documentation.
+    Requires API key authentication.
+    """
+    try:
+        from sqlalchemy import select
+        import json
+
+        # Get GitHub analysis
+        result = await db.execute(
+            select(GitHubAnalysis).where(GitHubAnalysis.id == analysis_id)
+        )
+        analysis = result.scalar_one_or_none()
+
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+
+        # Prepare data for report
+        repo_info = {
+            "name": analysis.repo_name,
+            "url": analysis.repo_url,
+            "language": analysis.language,
+            "stars": analysis.stars,
+            "forks": analysis.forks,
+            "description": "",
+        }
+
+        analysis_data = {
+            "summary": {
+                "total_python_files": analysis.total_python_files,
+                "files_analyzed": analysis.files_analyzed,
+                "total_lines_of_code": analysis.total_lines,
+                "average_maintainability": analysis.average_maintainability,
+            },
+            "detailed_analysis": (
+                json.loads(analysis.file_analyses) if analysis.file_analyses else {}
+            ),
+        }
+
+        # Generate report
+        markdown = report_generator.generate_markdown_report(analysis_data, repo_info)
+
+        # Return as downloadable file
+        filename = f"{analysis.repo_name}_analysis_report.md"
+        return Response(
+            content=markdown,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating markdown report: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/reports/json/{analysis_id}")
+@limiter.limit("10/minute")
+async def download_json_report(
+    request: Request,
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    api_key_info: dict = Security(verify_api_key),
+):
+    """
+    Download analysis report in JSON format.
+    Machine-readable for automation and integration.
+    Requires API key authentication.
+    """
+    try:
+        from sqlalchemy import select
+        import json
+
+        # Get GitHub analysis
+        result = await db.execute(
+            select(GitHubAnalysis).where(GitHubAnalysis.id == analysis_id)
+        )
+        analysis = result.scalar_one_or_none()
+
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+
+        # Prepare complete data
+        analysis_data = {
+            "id": analysis.id,
+            "repo_name": analysis.repo_name,
+            "repo_url": analysis.repo_url,
+            "language": analysis.language,
+            "stars": analysis.stars,
+            "forks": analysis.forks,
+            "analyzed_at": analysis.analyzed_at.isoformat(),
+            "summary": {
+                "total_python_files": analysis.total_python_files,
+                "files_analyzed": analysis.files_analyzed,
+                "total_lines": analysis.total_lines,
+                "average_maintainability": analysis.average_maintainability,
+            },
+            "file_analyses": (
+                json.loads(analysis.file_analyses) if analysis.file_analyses else []
+            ),
+        }
+
+        # Generate JSON report
+        json_report = report_generator.generate_json_report(analysis_data)
+
+        # Return as downloadable file
+        filename = f"{analysis.repo_name}_analysis_report.json"
+        return Response(
+            content=json_report,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating JSON report: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/reports/preview")
+@limiter.limit("5/minute")
+async def preview_report(
+    request: Request, code: str, api_key_info: dict = Security(verify_api_key)
+):
+    """
+    Generate a preview report for code snippet (no GitHub repo needed).
+    Quick analysis with instant Markdown report.
+    Requires API key authentication.
+    """
+    try:
+        # Run analysis
+        analysis_data = {
+            "detailed_analysis": {
+                "ast_structure": ast_analyzer.analyze_code(code),
+                "complexity_metrics": complexity_analyzer.analyze_complexity(code),
+                "security_scan": security_analyzer.scan_code(code),
+                "architecture": architecture_detector.detect_patterns(code),
+            }
+        }
+
+        # Generate report
+        markdown = report_generator.generate_markdown_report(analysis_data)
+
+        return {
+            "status": "success",
+            "markdown": markdown,
+            "message": "Report preview generated",
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating preview: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
