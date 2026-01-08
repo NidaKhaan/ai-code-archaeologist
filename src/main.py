@@ -1,5 +1,7 @@
 """Main FastAPI application for AI Code Archaeologist."""
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from src.db_models import AnalysisResult, GitHubAnalysis
 import logging
 from contextlib import asynccontextmanager
@@ -54,11 +56,20 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/")
+async def root():
+    """Redirect to web UI."""
+    return RedirectResponse(url="/static/index.html")
+
+
+@app.get("/health")
 @limiter.limit("10/minute")
-async def root(request: Request):
-    """Root endpoint - API health check."""
+async def health_check(request: Request):
+    """API health check endpoint."""
     return {
         "message": "AI Code Archaeologist API",
         "status": "running",

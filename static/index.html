@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Archaeologist - Analyze Any Repository</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <rect width="40" height="40" rx="8" fill="url(#logo-gradient)"/>
+                    <path d="M12 20L18 14L24 20L18 26L12 20Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M18 14L24 8L30 14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                            <stop stop-color="#8B5CF6"/>
+                            <stop offset="1" stop-color="#3B82F6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div>
+                    <h1>AI Code Archaeologist</h1>
+                    <p class="subtitle">Uncover insights from any codebase</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/docs" target="_blank" class="btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M10 14V10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="10" cy="7" r="1" fill="currentColor"/>
+                    </svg>
+                    API Docs
+                </a>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                Powered by Local AI
+            </div>
+            <h2 class="hero-title">
+                Analyze code like a
+                <span class="gradient-text">senior engineer</span>
+            </h2>
+            <p class="hero-description">
+                Drop any GitHub repository URL and get instant insights on code quality, 
+                security vulnerabilities, architecture patterns, and more.
+            </p>
+        </section>
+
+        <!-- Main Analysis Form -->
+        <section class="analysis-section">
+            <div class="glass-card main-card">
+                <div class="card-header">
+                    <h3>Repository Analysis</h3>
+                    <span class="status-badge" id="statusBadge">Ready</span>
+                </div>
+
+                <form id="analysisForm" class="analysis-form">
+                    <div class="form-group">
+                        <label for="repoUrl">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M10 2C5.58 2 2 5.58 2 10C2 13.54 4.29 16.53 7.47 17.59C7.87 17.66 8.02 17.42 8.02 17.21C8.02 17.02 8.01 16.39 8.01 15.72C6 16.09 5.48 15.21 5.32 14.76C5.23 14.53 4.84 13.81 4.5 13.62C4.22 13.47 3.82 13.1 4.49 13.09C5.12 13.08 5.57 13.67 5.72 13.91C6.44 15.15 7.59 14.81 8.05 14.6C8.12 14.08 8.33 13.73 8.56 13.53C6.84 13.33 5.03 12.65 5.03 9.53C5.03 8.63 5.23 7.89 5.74 7.31C5.66 7.11 5.38 6.32 5.82 5.23C5.82 5.23 6.49 5.02 8.02 6.07C8.66 5.89 9.34 5.8 10.02 5.8C10.7 5.8 11.38 5.89 12.02 6.07C13.55 5.01 14.22 5.23 14.22 5.23C14.66 6.32 14.38 7.11 14.3 7.31C14.81 7.89 15.01 8.62 15.01 9.53C15.01 12.66 13.19 13.33 11.47 13.53C11.76 13.78 12.01 14.26 12.01 15.01C12.01 16.08 12 16.94 12 17.21C12 17.42 12.15 17.67 12.55 17.59C15.71 16.53 18 13.53 18 10C18 5.58 14.42 2 10 2Z" fill="currentColor"/>
+                            </svg>
+                            GitHub Repository URL
+                        </label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="repoUrl" 
+                                name="repoUrl"
+                                placeholder="https://github.com/username/repository"
+                                class="form-input"
+                                required
+                            >
+                            <button type="submit" class="btn-primary" id="analyzeBtn">
+                                <span class="btn-text">Analyze Repository</span>
+                                <span class="btn-loader" style="display: none;">
+                                    <svg class="spinner" viewBox="0 0 50 50">
+                                        <circle cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                        <p class="input-hint">Try: https://github.com/psf/requests or any public Python repository</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiKey">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <rect x="3" y="9" width="14" height="9" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M7 9V5C7 3.34315 8.34315 2 10 2C11.6569 2 13 3.34315 13 5V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            API Key
+                        </label>
+                        <input 
+                            type="password" 
+                            id="apiKey" 
+                            name="apiKey"
+                            placeholder="Enter your API key"
+                            class="form-input"
+                            value="dev_key_123"
+                            required
+                        >
+                        <p class="input-hint">Use: dev_key_123 for demo</p>
+                    </div>
+                </form>
+
+                <!-- Progress Section -->
+                <div id="progressSection" class="progress-section" style="display: none;">
+                    <div class="progress-header">
+                        <span id="progressText">Initializing...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="step" data-step="1">
+                            <div class="step-icon">1</div>
+                            <span>Fetching</span>
+                        </div>
+                        <div class="step" data-step="2">
+                            <div class="step-icon">2</div>
+                            <span>Cloning</span>
+                        </div>
+                        <div class="step" data-step="3">
+                            <div class="step-icon">3</div>
+                            <span>Analyzing</span>
+                        </div>
+                        <div class="step" data-step="4">
+                            <div class="step-icon">4</div>
+                            <span>Complete</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="resultsSection" class="results-section" style="display: none;">
+            <!-- Repository Info Card -->
+            <div class="glass-card">
+                <div class="card-header">
+                    <h3>📦 Repository Information</h3>
+                </div>
+                <div class="repo-info" id="repoInfo"></div>
+            </div>
+
+            <!-- Overall Score Card -->
+            <div class="glass-card score-card">
+                <div class="card-header">
+                    <h3>🎯 Overall Quality Score</h3>
+                </div>
+                <div class="score-display" id="scoreDisplay">
+                    <div class="score-grade" id="scoreGrade">-</div>
+                    <div class="score-details">
+                        <div class="score-bar">
+                            <div class="score-bar-fill" id="scoreFill"></div>
+                        </div>
+                        <p class="score-description" id="scoreDescription">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <!-- Actions -->
+            <div class="results-actions">
+                <button class="btn-secondary" id="downloadMarkdown">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 13L6 9H14L10 13Z" fill="currentColor"/>
+                        <path d="M10 3V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4 17H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Download Markdown Report
+                </button>
+                <button class="btn-secondary" id="downloadJSON">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M7 7H13M7 10H13M7 13H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Download JSON Report
+                </button>
+                <button class="btn-primary" id="analyzeAnother">
+                    Analyze Another Repository
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
