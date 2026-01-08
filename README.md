@@ -18,7 +18,7 @@ AI Code Archaeologist is a production-ready platform that analyzes GitHub reposi
 - 🔒 **Production Security** - API key authentication and rate limiting
 - 📈 **Quality Scoring** - Get A-F grades for code maintainability
 
-**Perfect for:** Code reviews, repository audits, learning from open source, portfolio projects
+**Perfect for:** Code reviews, repository audits, learning from open source and portfolio projects.
 
 ## 🎬 Screenshots
 
