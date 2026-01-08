@@ -19,6 +19,21 @@ AI Code Archaeologist is a production-ready platform that analyzes GitHub reposi
 
 **Perfect for:** Code reviews, repository audits, learning from open source, portfolio projects
 
+## 🎬 Screenshots
+
+### 🏠 Landing Page
+![Hero Section](docs/images/screenshot1_hero.png)
+*Clean interface*
+
+### ⚡ Analysis in Progress
+![Analysis Progress](docs/images/screenshot2_progress.png)
+*Real-time progress tracking with visual feedback*
+
+### 📊 Analysis Results
+![Results Dashboard](docs/images/screenshot3_results.png)
+*Comprehensive analysis results with quality scores and insights*
+
+---
 ## ✨ Features
 
 ### 🚀 GitHub Integration
