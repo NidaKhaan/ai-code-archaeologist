@@ -1,6 +1,6 @@
 # 🤖 AI Code Archaeologist
 
-An intelligent code analysis platform powered by AI that understands, explains, and improves code like a senior developer.
+An intelligent code analysis platform powered by AI that understands, explains, improves code like a senior developer.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128-green)
