@@ -80,6 +80,11 @@ AI Code Archaeologist is a production-ready platform that analyzes GitHub reposi
 - **Request/response validation** (Pydantic)
 
 ## 🚀 Quick Start
+### 🚀 Try the Live Demo
+
+**No installation needed!** Visit the [live demo](https://web-production-af110.up.railway.app) and start analyzing repositories instantly.
+
+### 💻 Run Locally
 
 ### Prerequisites
 - Python 3.11+
