@@ -5,7 +5,7 @@ An intelligent code analysis platform powered by AI that understands, explains a
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Demo](https://img.shields.io/badge/Demo-Coming_Soon-purple)
+[![Live Demo](https://img.shields.io/badge/Demo-Live_Now-success?style=for-the-badge)](https://web-production-af110.up.railway.app)
 
 ## 🎯 What It Does
 
