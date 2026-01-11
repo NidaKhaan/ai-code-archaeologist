@@ -35,6 +35,17 @@ AI Code Archaeologist is a production-ready platform that analyzes GitHub reposi
 *Comprehensive analysis results with quality scores and insights*
 
 ---
+## 🌐 Live Demo
+
+**Try it now:** [https://web-production-af110.up.railway.app](https://web-production-af110.up.railway.app)
+
+- Use API Key: `dev_key_123`
+- Try analyzing: `https://github.com/psf/requests`
+- Get instant insights powered by AI!
+
+*Note: Deployed on Railway free tier. Using Groq API for fast cloud-based AI analysis.*
+
+---
 ## ✨ Features
 
 ### 🚀 GitHub Integration
